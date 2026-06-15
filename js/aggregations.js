@@ -291,6 +291,10 @@ function computeKpis(records, imeiAgg) {
   const owners = aggregateByOwner(imeiAgg);
   const masters = aggregateByMaster(records).filter((m) => m.repairs >= 2);
 
+  const MIN_SAMPLE = 5;
+  const significantModels = models.filter((m) => m.total >= MIN_SAMPLE);
+  const significantOwners = owners.filter((o) => o.total >= MIN_SAMPLE);
+
   return {
     totalRecords: records.length,
     uniqueImei: imeiAgg.length,
@@ -302,8 +306,8 @@ function computeKpis(records, imeiAgg) {
     avgDaysBetweenRepairs: repairGaps.length ? average(repairGaps) : null,
     imei2plus: imeiAgg.filter((r) => r.repairCount >= 2).length,
     imei3plus: imeiAgg.filter((r) => r.repairCount >= 3).length,
-    worstModel: models[0] || null,
-    worstOwner: owners[0] || null,
+    worstModel: significantModels[0] || models[0] || null,
+    worstOwner: significantOwners[0] || owners[0] || null,
     worstMaster: masters.sort((a, b) => b.repeatRate - a.repeatRate)[0] || null
   };
 }
