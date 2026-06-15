@@ -293,7 +293,7 @@ function computeKpis(records, imeiAgg) {
 
   const MIN_SAMPLE = 5;
   const significantModels = models.filter((m) => m.total >= MIN_SAMPLE);
-  const significantOwners = owners.filter((o) => o.total >= MIN_SAMPLE);
+  const mostRepairsOwner = [...owners].sort((a, b) => b.repairs - a.repairs)[0] || null;
 
   return {
     totalRecords: records.length,
@@ -307,7 +307,7 @@ function computeKpis(records, imeiAgg) {
     imei2plus: imeiAgg.filter((r) => r.repairCount >= 2).length,
     imei3plus: imeiAgg.filter((r) => r.repairCount >= 3).length,
     worstModel: significantModels[0] || models[0] || null,
-    worstOwner: significantOwners[0] || owners[0] || null,
+    worstOwner: mostRepairsOwner,
     worstMaster: masters.sort((a, b) => b.repeatRate - a.repeatRate)[0] || null
   };
 }
