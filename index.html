@@ -9,6 +9,17 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 </head>
 <body>
+  <div id="login-screen">
+    <div class="login-box">
+      <div class="login-logo">Аналітика <span>гарантійних обмінів</span></div>
+      <p class="login-hint">Введіть пароль для доступу</p>
+      <input type="password" id="login-pass" class="input" placeholder="Пароль" autocomplete="current-password">
+      <button id="login-btn" class="btn">Увійти</button>
+      <p id="login-error" class="login-error">Неправильний пароль</p>
+    </div>
+  </div>
+
+  <div id="site-content" style="display:none">
   <header class="app-header">
     <h1>Аналітика гарантійних обмінів</h1>
     <div class="upload-box">
@@ -85,6 +96,7 @@
     </nav>
 
     <main id="tab-content"></main>
+  </div>
   </div>
 
   <script src="js/utils.js"></script>

@@ -1,4 +1,36 @@
-// Точка входу: завантаження файлу, глобальні фільтри, перемикання вкладок.
+// Точка входу: захист паролем, завантаження файлу, глобальні фільтри, перемикання вкладок.
+
+const AUTH_HASH = "66efc76f356181319ed35d9a62470a72f500d566097b72f6aec503ab7a71381e";
+
+async function sha256Hex(str) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function unlockApp() {
+  document.getElementById("login-screen").style.display = "none";
+  document.getElementById("site-content").style.display = "";
+}
+
+async function checkLogin() {
+  const pass = document.getElementById("login-pass").value;
+  if (await sha256Hex(pass) === AUTH_HASH) {
+    sessionStorage.setItem("warranty_auth", "1");
+    unlockApp();
+  } else {
+    document.getElementById("login-error").classList.add("on");
+  }
+}
+
+if (sessionStorage.getItem("warranty_auth") === "1") {
+  unlockApp();
+} else {
+  document.getElementById("login-pass").focus();
+  document.getElementById("login-btn").addEventListener("click", checkLogin);
+  document.getElementById("login-pass").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") checkLogin();
+  });
+}
 
 const TABS = {
   dashboard: TabDashboard,
