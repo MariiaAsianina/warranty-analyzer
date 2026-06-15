@@ -187,7 +187,7 @@ h3 { font-size: 14px; margin: 18px 0 10px; color: var(--muted); text-transform: 
 /* ─── Charts ─── */
 .charts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
   gap: 16px;
   margin-bottom: 20px;
 }
@@ -198,7 +198,7 @@ h3 { font-size: 14px; margin: 18px 0 10px; color: var(--muted); text-transform: 
   padding: 14px 16px;
 }
 .chart-card h3 { margin-top: 0; }
-.chart-wrap { position: relative; height: 280px; }
+.chart-wrap { position: relative; height: 320px; }
 
 /* ─── Tables ─── */
 .data-table {

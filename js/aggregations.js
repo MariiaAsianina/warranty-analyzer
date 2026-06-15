@@ -56,6 +56,19 @@ function monthlySeries(records, dateFn) {
   return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([month, count]) => ({ month, count }));
 }
 
+/** Кількість ремонтів (подій "Виробництво") по днях, за датами подій усіх IMEI вибірки. */
+function dailyRepairsSeries(imeiAgg) {
+  const map = new Map();
+  for (const r of imeiAgg) {
+    for (const e of r.events || []) {
+      if (e.type !== "production" || !e.date) continue;
+      const key = e.date.slice(0, 10);
+      map.set(key, (map.get(key) || 0) + 1);
+    }
+  }
+  return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([date, count]) => ({ date, count }));
+}
+
 /** Перехресна таблиця (heatmap) row × col -> кількість. */
 function crossTab(records, rowKeyFn, colKeyFn, maxRows = 10, maxCols = 8) {
   const rowCounts = new Map();

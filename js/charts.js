@@ -20,7 +20,18 @@ function barChart(canvas, labels, data, { horizontal = false, color = CHART_COLO
       responsive: true,
       maintainAspectRatio: false,
       plugins: { legend: { display: false }, title: { display: !!title, text: title } },
-      scales: { x: { beginAtZero: true }, y: { beginAtZero: true } }
+      scales: {
+        x: { beginAtZero: true },
+        y: {
+          beginAtZero: true,
+          ticks: horizontal ? {
+            callback(value) {
+              const label = this.getLabelForValue(value);
+              return label.length > 28 ? label.slice(0, 26) + "…" : label;
+            }
+          } : {}
+        }
+      }
     }
   });
 }

@@ -41,6 +41,11 @@ const TabDashboard = {
           <p class="hint">Майстри (з 2+ ремонтами), після ремонту яких пристрої найчастіше повертаються знову — % повторних звернень.</p>
           <div class="chart-wrap"><canvas id="dash-chart-masters"></canvas></div>
         </div>
+        <div class="chart-card">
+          <h3>Ремонти по днях</h3>
+          <p class="hint">Кількість подій "Ремонт" (Виробництво) по датах їх виконання — показує динаміку навантаження на ремонтну службу.</p>
+          <div class="chart-wrap"><canvas id="dash-chart-daily-repairs"></canvas></div>
+        </div>
       </div>
     `;
 
@@ -74,6 +79,13 @@ const TabDashboard = {
       masters.map((m) => m.master),
       masters.map((m) => m.repeatRate),
       { horizontal: true, color: "#06b6d4", title: "% повторних" }
+    );
+
+    const dailyRepairs = dailyRepairsSeries(imeiAgg);
+    lineChart(
+      document.getElementById("dash-chart-daily-repairs"),
+      dailyRepairs.map((d) => fmtDate(d.date)),
+      [{ label: "Ремонтів", data: dailyRepairs.map((d) => d.count) }]
     );
   }
 };
