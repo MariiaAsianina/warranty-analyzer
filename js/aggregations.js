@@ -61,17 +61,76 @@ function monthlySeries(records, dateFn) {
   return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([month, count]) => ({ month, count }));
 }
 
-/** Кількість ремонтів (подій "Виробництво") по днях, за датами подій усіх IMEI вибірки. */
-function dailyRepairsSeries(imeiAgg) {
+/** ISO-тиждень (YYYY-Www) для дати у форматі YYYY-MM-DD. */
+function isoWeekKey(dateStr) {
+  const d = new Date(dateStr + "T00:00:00");
+  const dayOfWeek = d.getDay() || 7; // нд=0 -> 7
+  d.setDate(d.getDate() + 4 - dayOfWeek); // четвер цього тижня
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  const weekNum = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return `${d.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+}
+
+/** Перетворює дату YYYY-MM-DD у ключ групування для обраного масштабу: day | week | month. */
+function dateBucketKey(date, scale) {
+  if (scale === "week") return isoWeekKey(date);
+  if (scale === "month") return date.slice(0, 7);
+  return date.slice(0, 10);
+}
+
+/** Підпис для осі графіка залежно від масштабу. */
+function dateBucketLabel(key, scale) {
+  if (scale === "day") return fmtDate(key);
+  return key;
+}
+
+/** Кількість ремонтів (подій "Виробництво") по обраному масштабу часу. */
+function repairDateSeries(imeiAgg, scale = "month") {
   const map = new Map();
   for (const r of imeiAgg) {
     for (const e of r.events || []) {
       if (e.type !== "production" || !e.date) continue;
-      const key = e.date.slice(0, 10);
+      const key = dateBucketKey(e.date, scale);
       map.set(key, (map.get(key) || 0) + 1);
     }
   }
-  return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([date, count]) => ({ date, count }));
+  return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([key, count]) => ({ key, count }));
+}
+
+/** Кількість звернень (оприбуткувань після продажу) по обраному масштабу часу. */
+function claimDateSeries(imeiAgg, scale = "month") {
+  const map = new Map();
+  for (const r of imeiAgg) {
+    if (!r.saleDate) continue;
+    for (const e of r.events || []) {
+      if (e.type !== "receipt" || !e.date || e.date <= r.saleDate) continue;
+      const key = dateBucketKey(e.date, scale);
+      map.set(key, (map.get(key) || 0) + 1);
+    }
+  }
+  return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([key, count]) => ({ key, count }));
+}
+
+/** Бакети для гістограми "Дні від продажу до першого звернення". */
+const CLAIM_DELAY_BUCKETS = [
+  { label: "До 14 днів", max: 14 },
+  { label: "15-30 днів", max: 30 },
+  { label: "31-90 днів", max: 90 },
+  { label: "91-180 днів", max: 180 },
+  { label: "181-365 днів", max: 365 },
+  { label: "Понад 365 днів", max: Infinity }
+];
+
+/** Гістограма розподілу IMEI за кількістю днів від продажу до першого звернення. */
+function daysToFirstClaimHistogram(imeiAgg) {
+  const buckets = CLAIM_DELAY_BUCKETS.map((b) => ({ ...b, count: 0 }));
+  for (const r of imeiAgg) {
+    const d = r.daysToFirstClaim;
+    if (d === null || d === undefined || d < 0) continue;
+    const bucket = buckets.find((b) => d <= b.max);
+    if (bucket) bucket.count++;
+  }
+  return buckets;
 }
 
 /** Перехресна таблиця (heatmap) row × col -> кількість. */
