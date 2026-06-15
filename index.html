@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Аналітика гарантійних обмінів</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <h1>Аналітика гарантійних обмінів</h1>
+
+  <div class="upload-box">
+    <p>Завантажте звіт 1С "Партії товарів / рух собівартості" (.xls / .xlsx) — все обчислюється локально у браузері, без передачі даних на сервер.</p>
+    <input type="file" id="file-input" accept=".xls,.xlsx">
+  </div>
+
+  <div id="error" hidden></div>
+  <div id="summary"></div>
+  <div id="content"></div>
+
+  <script src="js/parser.js"></script>
+  <script src="js/aggregations.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

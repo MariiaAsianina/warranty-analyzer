@@ -1,0 +1,90 @@
+* { box-sizing: border-box; }
+body {
+  font-family: -apple-system, "Segoe UI", Arial, sans-serif;
+  margin: 0;
+  padding: 24px;
+  background: #f4f5f7;
+  color: #1a1d23;
+}
+h1 { font-size: 22px; margin: 0 0 16px; }
+h2 { font-size: 16px; margin: 0 0 12px; }
+
+.upload-box {
+  background: #fff;
+  border: 1px solid #e1e4e8;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+#error {
+  background: #fdecea;
+  border: 1px solid #f5c2c0;
+  color: #b3261e;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+#summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.kpi {
+  background: #fff;
+  border: 1px solid #e1e4e8;
+  border-radius: 8px;
+  padding: 12px 16px;
+  min-width: 150px;
+}
+.kpi-value { font-size: 22px; font-weight: 700; }
+.kpi-label { font-size: 12px; color: #6b7280; margin-top: 4px; }
+
+.section {
+  background: #fff;
+  border: 1px solid #e1e4e8;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.search {
+  width: 100%;
+  max-width: 420px;
+  padding: 8px 10px;
+  border: 1px solid #d0d4d9;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  max-height: 600px;
+  overflow-y: auto;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+  white-space: nowrap;
+}
+th, td {
+  border-bottom: 1px solid #edf0f2;
+  padding: 6px 10px;
+  text-align: left;
+}
+th {
+  background: #f9fafb;
+  cursor: pointer;
+  position: sticky;
+  top: 0;
+  user-select: none;
+}
+th:hover { background: #eef1f4; }
+tbody tr:hover { background: #f7f9fb; }
+tr.problem { background: #fff6f0; }
+tr.problem:hover { background: #ffeee0; }
+td:nth-child(13), td:nth-child(2) { white-space: normal; max-width: 320px; }
