@@ -1,5 +1,10 @@
 // Допоміжні функції агрегації даних для аналізу гарантійних обмінів.
 
+/** Мінімальна к-сть IMEI у власника/моделі, щоб потрапити в рейтинг "найпроблемніших". */
+const MIN_SAMPLE = 5;
+/** Мінімальна к-сть ремонтів у майстра, щоб потрапити в рейтинг "% повторних звернень". */
+const MASTER_MIN_REPAIRS = 5;
+
 function daysBetween(dateFrom, dateTo) {
   if (!dateFrom || !dateTo) return null;
   const a = new Date(dateFrom);
@@ -159,6 +164,7 @@ function aggregateByImei(records) {
       saleDate,
       lastSaleDate,
       firstClaimDate: firstClaim?.date || null,
+      lastClaimDate: claims.length ? claims[claims.length - 1].date : null,
       lastSaleBeforeClaim,
       daysSaleToReturn,
       daysToFirstClaim: saleDate && firstClaim ? daysBetween(saleDate, firstClaim.date) : null,
@@ -167,7 +173,7 @@ function aggregateByImei(records) {
       events: events.filter((e) => e.date),
       reasons: [...uniqueReasons],
       sameReasonRepeat,
-      problem: repairs.length >= 2 || claims.length >= 2 || sameReasonRepeat || g.exchanges.length >= 2
+      problem: repairs.length >= 2 || claims.length >= 2 || sameReasonRepeat
     });
   }
   return result.sort((a, b) => (b.repairCount + b.claimCount) - (a.repairCount + a.claimCount));
@@ -246,14 +252,22 @@ function aggregateByReason(records) {
   })).sort((a, b) => b.count - a.count);
 }
 
-/** Статистика по майстрах ремонту, обчислена з подій типу "production". */
-function aggregateByMaster(records) {
+/**
+ * Статистика по майстрах ремонту, обчислена з повної історії IMEI (imeiAgg.events).
+ * "Повторне звернення" = після цього ремонту по тому ж IMEI сталась ще одна подія
+ * ремонту АБО ще одне звернення клієнта (оприбуткування після продажу) — тобто
+ * пристрій довелося обслуговувати знову.
+ */
+function aggregateByMaster(imeiAgg) {
   const map = new Map();
-  for (const r of records) {
-    const sorted = r.events;
-    for (let i = 0; i < sorted.length; i++) {
-      const e = sorted[i];
-      if (e.type !== "production" || !e.repairMaster) continue;
+  for (const r of imeiAgg) {
+    const events = r.events || [];
+    const repairs = events.filter((e) => e.type === "production" && e.repairMaster);
+    const claims = r.saleDate
+      ? events.filter((e) => e.type === "receipt" && e.date && e.date > r.saleDate)
+      : [];
+
+    for (const e of repairs) {
       const key = e.repairMaster;
       if (!map.has(key)) {
         map.set(key, { master: key, repairs: 0, byBrand: new Map(), byModel: new Map(), repeatsAfter: 0, gaps: [], returnedImeis: new Set() });
@@ -261,20 +275,18 @@ function aggregateByMaster(records) {
       const m = map.get(key);
       m.repairs++;
       m.byBrand.set(r.brand, (m.byBrand.get(r.brand) || 0) + 1);
-      const modelLabel = `${r.brand || ""} ${r.model || ""}`.trim() || "Невідома модель";
-      m.byModel.set(modelLabel, (m.byModel.get(modelLabel) || 0) + 1);
+      m.byModel.set(r.modelLabel, (m.byModel.get(r.modelLabel) || 0) + 1);
 
-      const later = sorted.slice(i + 1).some(
-        (ev) => ev.date && e.date && ev.date > e.date && (ev.type === "receipt" || ev.type === "production")
-      );
-      if (later) {
+      const repeated = repairs.some((other) => other !== e && other.date && e.date && other.date > e.date)
+        || claims.some((c) => c.date && e.date && c.date > e.date);
+      if (repeated) {
         m.repeatsAfter++;
         m.returnedImeis.add(r.imei);
       }
 
-      const priorReceipt = [...sorted.slice(0, i)].reverse().find((ev) => ev.type === "receipt");
-      if (priorReceipt && priorReceipt.date && e.date) {
-        const d = daysBetween(priorReceipt.date, e.date);
+      const priorReceipts = events.filter((ev) => ev.type === "receipt" && ev.date && e.date && ev.date <= e.date);
+      if (priorReceipts.length) {
+        const d = daysBetween(priorReceipts[priorReceipts.length - 1].date, e.date);
         if (d !== null) m.gaps.push(d);
       }
     }
@@ -302,9 +314,8 @@ function computeKpis(records, imeiAgg) {
 
   const models = aggregateByModel(imeiAgg);
   const owners = aggregateByOwner(imeiAgg);
-  const masters = aggregateByMaster(records).filter((m) => m.repairs >= 2);
+  const masters = aggregateByMaster(imeiAgg).filter((m) => m.repairs >= MASTER_MIN_REPAIRS);
 
-  const MIN_SAMPLE = 5;
   const significantModels = models.filter((m) => m.total >= MIN_SAMPLE);
   const mostRepairsOwner = [...owners].sort((a, b) => b.repairs - a.repairs)[0] || null;
 

@@ -7,7 +7,7 @@ const TabDashboard = {
     container.innerHTML = `
       <div class="kpi-grid">
         ${kpiCard(k.uniqueImei, "Унікальних IMEI (пристроїв у вибірці)", "", "Кількість унікальних пристроїв (за номером IMEI) у поточній вибірці з урахуванням застосованих фільтрів.")}
-        ${kpiCard(k.problemImei, "Проблемних IMEI (2+ ремонти/звернення)", levelClass(k.uniqueImei ? k.problemImei / k.uniqueImei * 100 : 0, 15, 30), "IMEI вважається проблемним, якщо має 2+ ремонти, 2+ звернення, повторну причину звернення або 2+ обміни.")}
+        ${kpiCard(k.problemImei, "Проблемних IMEI (2+ ремонти/звернення)", levelClass(k.uniqueImei ? k.problemImei / k.uniqueImei * 100 : 0, 15, 30), "IMEI вважається проблемним, якщо має 2+ ремонти, 2+ звернення (повернення після продажу) або повторну причину звернення.")}
         ${kpiCard(k.totalRepairs, "Ремонтів усього (подій \"Виробництво\")", "", "Загальна кількість подій \"Ремонт\" (Виробництво) по всіх IMEI вибірки.")}
         ${kpiCard(k.totalClaims, "Звернень усього (повторні оприбуткування)", "", "Загальна кількість повторних оприбуткувань (повернень клієнтами) після продажу.")}
         ${kpiCard(fmtNum(k.avgRepairsPerImei, 2), "Сер. ремонтів на 1 IMEI (навантаження)", levelClass(k.avgRepairsPerImei, 1, 2), "Загальна к-сть ремонтів, поділена на к-сть унікальних IMEI. Показує середнє навантаження на один пристрій.")}
@@ -37,8 +37,8 @@ const TabDashboard = {
           <div class="chart-wrap"><canvas id="dash-chart-owners"></canvas></div>
         </div>
         <div class="chart-card">
-          <h3>ТОП-10 майстрів за % повторних звернень (мін. 2 ремонти)</h3>
-          <p class="hint">Майстри (з 2+ ремонтами), після ремонту яких пристрої найчастіше повертаються знову — % повторних звернень.</p>
+          <h3>ТОП-10 майстрів за % повторних звернень (мін. ${MASTER_MIN_REPAIRS} ремонтів)</h3>
+          <p class="hint">Майстри (з ${MASTER_MIN_REPAIRS}+ ремонтами), після ремонту яких пристрої найчастіше потребують повторного звернення чи ремонту — % повторних.</p>
           <div class="chart-wrap"><canvas id="dash-chart-masters"></canvas></div>
         </div>
         <div class="chart-card">
@@ -73,7 +73,7 @@ const TabDashboard = {
       { horizontal: true, color: "#8b5cf6", title: "% проблемних" }
     );
 
-    const masters = aggregateByMaster(records).filter((m) => m.repairs >= 2).sort((a, b) => b.repeatRate - a.repeatRate).slice(0, 10);
+    const masters = aggregateByMaster(imeiAgg).filter((m) => m.repairs >= MASTER_MIN_REPAIRS).sort((a, b) => b.repeatRate - a.repeatRate).slice(0, 10);
     barChart(
       document.getElementById("dash-chart-masters"),
       masters.map((m) => m.master),
