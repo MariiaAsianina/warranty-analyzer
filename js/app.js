@@ -131,6 +131,17 @@ for (const [id, key] of filterBindings) {
   });
 }
 
+const helpModal = document.getElementById("help-modal");
+document.getElementById("help-btn").addEventListener("click", () => {
+  helpModal.hidden = false;
+});
+document.getElementById("help-close").addEventListener("click", () => {
+  helpModal.hidden = true;
+});
+helpModal.addEventListener("click", (e) => {
+  if (e.target === helpModal) helpModal.hidden = true;
+});
+
 document.getElementById("f-reset").addEventListener("click", () => {
   resetFilters();
   for (const [id, key] of filterBindings) {

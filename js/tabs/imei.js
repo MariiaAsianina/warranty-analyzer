@@ -75,26 +75,34 @@ const TabImei = {
     detailEl.innerHTML = `
       <h2>${escapeHtml(r.imei)}</h2>
       <div class="imei-summary-grid">
-        ${summaryItem("Модель", r.modelLabel)}
-        ${summaryItem("Пам'ять / колір", `${r.memory || "—"} ${r.color || ""}`.trim())}
-        ${summaryItem("Власник партії", r.owner || "Невідомо")}
-        ${summaryItem("Магазин", r.store || "—")}
-        ${summaryItem("Місто", r.city || "—")}
-        ${summaryItem("Дата продажу", fmtDate(r.saleDate))}
-        ${summaryItem("Дата першого повернення", fmtDate(r.firstClaimDate))}
-        ${summaryItem("Днів продаж → повернення", r.daysSaleToReturn ?? "—", levelClass(r.daysSaleToReturn ?? -1, 30, 7, true))}
-        ${summaryItem("Оприбуткувань (звернень)", r.receiptCount)}
-        ${summaryItem("Звернень (claims)", r.claimCount, levelClass(r.claimCount, 1, 2))}
-        ${summaryItem("Ремонтів", r.repairCount, levelClass(r.repairCount, 1, 2))}
-        ${summaryItem("Сер. днів між ремонтами", fmtNum(r.avgDaysBetweenRepairs, 0))}
-        ${summaryItem("Майстри ремонту", r.repairMasters.length ? r.repairMasters.join(", ") : "—")}
-        ${summaryItem("Причини", r.reasons.length ? r.reasons.join(", ") : "—")}
-        ${summaryItem("Статус", r.problem ? badge("Проблемний", "bad") : badge("Без проблем", "good"))}
+        ${summaryItem("Модель", r.modelLabel, "", "Бренд і назва моделі пристрою.")}
+        ${summaryItem("Пам'ять / колір", `${r.memory || "—"} ${r.color || ""}`.trim(), "", "Обсяг пам'яті та колір корпусу.")}
+        ${summaryItem("Власник партії", r.owner || "Невідомо", "", "Джерело партії товару (Trade-in, постачальник тощо).")}
+        ${summaryItem("Магазин", r.store || "—", "", "Склад/магазин першого оприбуткування цього IMEI.")}
+        ${summaryItem("Місто", r.city || "—", "", "Місто магазину/складу.")}
+        ${summaryItem("Дата продажу", fmtDate(r.saleDate), "", "Дата найранішого продажу (чек ККМ) цього IMEI.")}
+        ${summaryItem("Дата першого повернення", fmtDate(r.firstClaimDate), "", "Дата першого оприбуткування, що сталось після продажу (перше звернення клієнта).")}
+        ${summaryItem("Днів продаж → повернення", r.daysSaleToReturn ?? "—", levelClass(r.daysSaleToReturn ?? -1, 30, 7, true), "Кількість днів між продажем і першим зверненням. Менше значення = пристрій повернули швидше, що може вказувати на серйознішу проблему.")}
+        ${summaryItem("Оприбуткувань (звернень)", r.receiptCount, "", "Загальна кількість подій 'Оприбуткування запасів' для цього IMEI.")}
+        ${summaryItem("Звернень (claims)", r.claimCount, levelClass(r.claimCount, 1, 2), "Кількість оприбуткувань, що сталися після продажу — тобто скільки разів клієнт повертав пристрій.")}
+        ${summaryItem("Ремонтів", r.repairCount, levelClass(r.repairCount, 1, 2), "Кількість подій 'Виробництво' (фактичних ремонтів) для цього IMEI.")}
+        ${summaryItem("Сер. днів між ремонтами", fmtNum(r.avgDaysBetweenRepairs, 0), "", "Середній інтервал у днях між послідовними ремонтами цього IMEI.")}
+        ${summaryItem("Майстри ремонту", r.repairMasters.length ? r.repairMasters.join(", ") : "—", "", "Усі майстри, які ремонтували цей IMEI.")}
+        ${summaryItem("Причини", r.reasons.length ? r.reasons.join(", ") : "—", "", "Усі унікальні причини звернень по цьому IMEI.")}
+        ${summaryItem("Статус", r.problem ? badge("Проблемний", "bad") : badge("Без проблем", "good"), "", "IMEI вважається проблемним, якщо має 2+ ремонти, 2+ звернення, повторну причину або 2+ обміни.")}
       </div>
 
       <h3>Хронологія подій</h3>
+      <p class="hint">Усі документи 1С по цьому IMEI у хронологічному порядку: продажі, оприбуткування (звернення), ремонти, списання, переміщення.</p>
       <table class="timeline-table">
-        <thead><tr><th>Дата</th><th>Тип</th><th>Документ</th><th>Склад</th><th>Майстер</th><th>Вартість</th></tr></thead>
+        <thead><tr>
+          <th title="Дата документа.">Дата</th>
+          <th title="Тип документа/події: Продаж, Оприбуткування, Ремонт, Списання, Переміщення.">Тип</th>
+          <th title="Номер документа в 1С.">Документ</th>
+          <th title="Склад/магазин, де відбулась подія.">Склад</th>
+          <th title="Майстер, що виконував ремонт (лише для подій 'Ремонт').">Майстер</th>
+          <th title="Вартість ремонту або собівартість на момент події.">Вартість</th>
+        </tr></thead>
         <tbody>
           ${r.events.map((e) => `
             <tr>
@@ -112,8 +120,9 @@ const TabImei = {
   }
 };
 
-function summaryItem(label, value, level = "") {
-  return `<div class="summary-item"><div class="summary-label">${escapeHtml(label)}</div><div class="summary-value ${level}">${value}</div></div>`;
+function summaryItem(label, value, level = "", desc = "") {
+  const title = desc ? ` title="${escapeHtml(desc)}"` : "";
+  return `<div class="summary-item"${title}><div class="summary-label">${escapeHtml(label)}</div><div class="summary-value ${level}">${value}</div></div>`;
 }
 
 function eventTypeLabel(type) {

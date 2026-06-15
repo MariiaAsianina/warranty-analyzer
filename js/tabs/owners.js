@@ -10,14 +10,14 @@ const TabOwners = {
       <table class="data-table" id="owners-table">
         <thead>
           <tr>
-            <th data-key="owner">Власник партії</th>
-            <th data-key="total">К-сть IMEI</th>
-            <th data-key="repairs">Ремонтів</th>
-            <th data-key="claims">Звернень</th>
-            <th data-key="avgRepairs">Сер. ремонтів / IMEI</th>
-            <th data-key="avgReturn">Сер. дн. продаж→повернення</th>
-            <th data-key="problemRate">% проблемних IMEI</th>
-            <th>ТОП моделі</th>
+            <th data-key="owner" title="Юридична/фізична особа або джерело, що поставило партію товару (Trade-in, постачальник тощо).">Власник партії</th>
+            <th data-key="total" title="Кількість унікальних IMEI, що належать цьому власнику партії.">К-сть IMEI</th>
+            <th data-key="repairs" title="Сумарна кількість ремонтів усіх IMEI цього власника.">Ремонтів</th>
+            <th data-key="claims" title="Сумарна кількість повторних звернень (повернень) усіх IMEI цього власника.">Звернень</th>
+            <th data-key="avgRepairs" title="Кількість ремонтів, поділена на кількість IMEI цього власника.">Сер. ремонтів / IMEI</th>
+            <th data-key="avgReturn" title="Середня кількість днів між продажем і першим зверненням для IMEI цього власника.">Сер. дн. продаж→повернення</th>
+            <th data-key="problemRate" title="Частка IMEI цього власника, які класифіковано як проблемні (2+ ремонти/звернення, повторна причина або 2+ обміни).">% проблемних IMEI</th>
+            <th title="3 моделі, які найчастіше зустрічаються серед IMEI цього власника.">ТОП моделі</th>
           </tr>
         </thead>
         <tbody>

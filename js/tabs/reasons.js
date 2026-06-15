@@ -24,9 +24,15 @@ const TabReasons = {
       <h2>Причини звернень</h2>
 
       <h3>ТОП причин</h3>
+      <p class="hint">Кожен запис у звіті має причину звернення (поле "Причина обміну"). Таблиця показує, які причини зустрічаються найчастіше.</p>
       <table class="data-table" id="reasons-table">
         <thead>
-          <tr><th data-key="reason">Причина</th><th data-key="count">К-сть</th><th data-key="percent">% від усіх</th><th data-key="repairs">Ремонтів</th></tr>
+          <tr>
+            <th data-key="reason" title="Текст причини звернення/обміну з 1С-звіту.">Причина</th>
+            <th data-key="count" title="Кількість записів (звернень) з цією причиною.">К-сть</th>
+            <th data-key="percent" title="Частка цієї причини серед усіх звернень у вибірці.">% від усіх</th>
+            <th data-key="repairs" title="Сумарна кількість ремонтів по записах з цією причиною.">Ремонтів</th>
+          </tr>
         </thead>
         <tbody>
           ${reasons.map((r) => `
@@ -43,18 +49,22 @@ const TabReasons = {
       <div class="charts-grid">
         <div class="chart-card">
           <h3>Pareto-аналіз причин</h3>
+          <p class="hint">Стовпці — кількість звернень по причині, лінія — накопичувальний відсоток. Показує, які причини дають основну масу звернень (правило 80/20).</p>
           <div class="chart-wrap"><canvas id="reasons-pareto"></canvas></div>
         </div>
         <div class="chart-card">
           <h3>Динаміка ТОП-5 причин по місяцях</h3>
+          <p class="hint">Кількість звернень по кожній з 5 найпоширеніших причин у розрізі місяців.</p>
           <div class="chart-wrap"><canvas id="reasons-trend"></canvas></div>
         </div>
       </div>
 
       <h3>Теплова карта: Магазин × Причина</h3>
+      <p class="hint">Кількість звернень по кожній парі "магазин (склад оприбуткування) — причина". Темніший колір = більше звернень.</p>
       <div id="store-reason-heatmap"></div>
 
       <h3>Теплова карта: Модель × Причина</h3>
+      <p class="hint">Кількість звернень по кожній парі "модель пристрою — причина". Темніший колір = більше звернень.</p>
       <div id="model-reason-heatmap"></div>
     `;
 
