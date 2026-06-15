@@ -17,10 +17,66 @@ function countBy(records, keyFn) {
   return [...map.entries()].map(([key, count]) => ({ key, count }));
 }
 
+function topN(records, keyFn, n = 10) {
+  return countBy(records, keyFn).sort((a, b) => b.count - a.count).slice(0, n);
+}
+
+function uniqueValues(records, keyFn) {
+  return [...new Set(records.map(keyFn).filter((v) => v !== null && v !== undefined && v !== ""))].sort((a, b) =>
+    String(a).localeCompare(String(b), "uk")
+  );
+}
+
 function average(arr) {
   const vals = arr.filter((v) => v !== null && v !== undefined && !Number.isNaN(v));
   if (!vals.length) return null;
   return vals.reduce((a, b) => a + b, 0) / vals.length;
+}
+
+/** Накопичувальний Pareto-ряд для топ значень. */
+function paretoSeries(records, keyFn, n = 15) {
+  const counts = countBy(records, keyFn).sort((a, b) => b.count - a.count);
+  const total = counts.reduce((s, c) => s + c.count, 0);
+  let cum = 0;
+  return counts.slice(0, n).map((c) => {
+    cum += c.count;
+    return { ...c, percent: total ? (c.count / total) * 100 : 0, cumPercent: total ? (cum / total) * 100 : 0 };
+  });
+}
+
+/** Місячний ряд (YYYY-MM -> кількість) за заданим полем дати. */
+function monthlySeries(records, dateFn) {
+  const map = new Map();
+  for (const r of records) {
+    const d = dateFn(r);
+    if (!d) continue;
+    const key = d.slice(0, 7);
+    map.set(key, (map.get(key) || 0) + 1);
+  }
+  return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([month, count]) => ({ month, count }));
+}
+
+/** Перехресна таблиця (heatmap) row × col -> кількість. */
+function crossTab(records, rowKeyFn, colKeyFn, maxRows = 10, maxCols = 8) {
+  const rowCounts = new Map();
+  const colCounts = new Map();
+  const cellCounts = new Map();
+
+  for (const r of records) {
+    const rk = rowKeyFn(r);
+    const ck = colKeyFn(r);
+    if (!rk || !ck) continue;
+    rowCounts.set(rk, (rowCounts.get(rk) || 0) + 1);
+    colCounts.set(ck, (colCounts.get(ck) || 0) + 1);
+    const cellKey = rk + "" + ck;
+    cellCounts.set(cellKey, (cellCounts.get(cellKey) || 0) + 1);
+  }
+
+  const rows = [...rowCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, maxRows).map(([k]) => k);
+  const cols = [...colCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, maxCols).map(([k]) => k);
+
+  const matrix = rows.map((rk) => cols.map((ck) => cellCounts.get(rk + "" + ck) || 0));
+  return { rows, cols, matrix };
 }
 
 /** Групує записи по IMEI і обчислює сукупні показники по всій історії звернень. */
@@ -67,11 +123,13 @@ function aggregateByImei(records) {
     const daysSaleToReturn = firstClaim ? daysBetween(lastSaleBeforeClaim, firstClaim.date) : null;
 
     const first = g.exchanges[0];
+    const modelLabel = `${first.brand || ""} ${first.model || ""}`.trim() || "Невідома модель";
     result.push({
       imei: g.imei,
       productRaw: first.productRaw,
       brand: first.brand,
       model: first.model,
+      modelLabel,
       memory: first.memory,
       color: first.color,
       owners: [...new Set(g.owners)],
@@ -102,10 +160,10 @@ function aggregateByImei(records) {
   return result.sort((a, b) => (b.repairCount + b.claimCount) - (a.repairCount + a.claimCount));
 }
 
-/** Групує записи за власником партії (джерело надходження товару). */
-function aggregateByOwner(records) {
+/** Групує агреговані IMEI за власником партії. */
+function aggregateByOwner(imeiAgg) {
   const map = new Map();
-  for (const r of records) {
+  for (const r of imeiAgg) {
     const key = r.owner || "Невідомо";
     if (!map.has(key)) map.set(key, { owner: key, items: [] });
     map.get(key).items.push(r);
@@ -114,15 +172,65 @@ function aggregateByOwner(records) {
     const total = items.length;
     const repairs = items.reduce((s, r) => s + (r.repairCount || 0), 0);
     const claims = items.reduce((s, r) => s + (r.claimCount || 0), 0);
-    const problematic = items.filter((r) => (r.repairCount || 0) > 0 || (r.claimCount || 0) > 0).length;
+    const problematic = items.filter((r) => r.problem).length;
+    const returnDays = items.map((r) => r.daysSaleToReturn).filter((v) => v !== null);
+    const topModels = topN(items, (r) => r.modelLabel, 3);
     return {
       owner,
       total,
       repairs,
       claims,
+      avgRepairsPerImei: total ? repairs / total : 0,
+      avgDaysSaleToReturn: returnDays.length ? average(returnDays) : null,
+      problemCount: problematic,
+      problemRate: total ? (problematic / total) * 100 : 0,
+      topModels
+    };
+  }).sort((a, b) => b.problemRate - a.problemRate || b.total - a.total);
+}
+
+/** Групує агреговані IMEI за моделлю (бренд + модель). */
+function aggregateByModel(imeiAgg) {
+  const map = new Map();
+  for (const r of imeiAgg) {
+    const key = r.modelLabel;
+    if (!map.has(key)) map.set(key, { model: key, items: [] });
+    map.get(key).items.push(r);
+  }
+  return [...map.values()].map(({ model, items }) => {
+    const total = items.length;
+    const repairs = items.reduce((s, r) => s + (r.repairCount || 0), 0);
+    const claims = items.reduce((s, r) => s + (r.claimCount || 0), 0);
+    const problematic = items.filter((r) => r.problem).length;
+    const returnDays = items.map((r) => r.daysSaleToReturn).filter((v) => v !== null);
+    return {
+      model,
+      total,
+      repairs,
+      claims,
+      avgRepairsPerImei: total ? repairs / total : 0,
+      avgDaysSaleToReturn: returnDays.length ? average(returnDays) : null,
+      problemCount: problematic,
       problemRate: total ? (problematic / total) * 100 : 0
     };
-  }).sort((a, b) => b.total - a.total);
+  }).sort((a, b) => b.problemRate - a.problemRate || b.repairs - a.repairs);
+}
+
+/** Статистика по причинах звернень (на основі сирих записів). */
+function aggregateByReason(records) {
+  const map = new Map();
+  for (const r of records) {
+    const key = r.reason || "Невідомо";
+    if (!map.has(key)) map.set(key, { reason: key, items: [] });
+    map.get(key).items.push(r);
+  }
+  const total = records.length;
+  return [...map.values()].map(({ reason, items }) => ({
+    reason,
+    count: items.length,
+    percent: total ? (items.length / total) * 100 : 0,
+    repairs: items.reduce((s, r) => s + (r.repairCount || 0), 0)
+  })).sort((a, b) => b.count - a.count);
 }
 
 /** Статистика по майстрах ремонту, обчислена з подій типу "production". */
@@ -135,17 +243,21 @@ function aggregateByMaster(records) {
       if (e.type !== "production" || !e.repairMaster) continue;
       const key = e.repairMaster;
       if (!map.has(key)) {
-        map.set(key, { master: key, repairs: 0, byBrand: new Map(), byModel: new Map(), repeatsAfter: 0, gaps: [] });
+        map.set(key, { master: key, repairs: 0, byBrand: new Map(), byModel: new Map(), repeatsAfter: 0, gaps: [], returnedImeis: new Set() });
       }
       const m = map.get(key);
       m.repairs++;
       m.byBrand.set(r.brand, (m.byBrand.get(r.brand) || 0) + 1);
-      m.byModel.set(r.model, (m.byModel.get(r.model) || 0) + 1);
+      const modelLabel = `${r.brand || ""} ${r.model || ""}`.trim() || "Невідома модель";
+      m.byModel.set(modelLabel, (m.byModel.get(modelLabel) || 0) + 1);
 
       const later = sorted.slice(i + 1).some(
         (ev) => ev.date && e.date && ev.date > e.date && (ev.type === "receipt" || ev.type === "production")
       );
-      if (later) m.repeatsAfter++;
+      if (later) {
+        m.repeatsAfter++;
+        m.returnedImeis.add(r.imei);
+      }
 
       const priorReceipt = [...sorted.slice(0, i)].reverse().find((ev) => ev.type === "receipt");
       if (priorReceipt && priorReceipt.date && e.date) {
@@ -162,6 +274,36 @@ function aggregateByMaster(records) {
     byModel: [...m.byModel.entries()].sort((a, b) => b[1] - a[1]),
     repeatsAfter: m.repeatsAfter,
     repeatRate: m.repairs ? (m.repeatsAfter / m.repairs) * 100 : 0,
-    avgDaysClaimToRepair: m.gaps.length ? average(m.gaps) : null
+    avgDaysClaimToRepair: m.gaps.length ? average(m.gaps) : null,
+    returnedImeis: [...m.returnedImeis]
   })).sort((a, b) => b.repairs - a.repairs);
+}
+
+/** Обчислює зведені KPI для дашборду. */
+function computeKpis(records, imeiAgg) {
+  const totalRepairs = imeiAgg.reduce((s, r) => s + r.repairCount, 0);
+  const totalClaims = imeiAgg.reduce((s, r) => s + r.claimCount, 0);
+  const problemImei = imeiAgg.filter((r) => r.problem);
+  const returnDays = imeiAgg.map((r) => r.daysSaleToReturn).filter((v) => v !== null);
+  const repairGaps = imeiAgg.map((r) => r.avgDaysBetweenRepairs).filter((v) => v !== null);
+
+  const models = aggregateByModel(imeiAgg);
+  const owners = aggregateByOwner(imeiAgg);
+  const masters = aggregateByMaster(records).filter((m) => m.repairs >= 2);
+
+  return {
+    totalRecords: records.length,
+    uniqueImei: imeiAgg.length,
+    problemImei: problemImei.length,
+    totalRepairs,
+    totalClaims,
+    avgRepairsPerImei: imeiAgg.length ? totalRepairs / imeiAgg.length : 0,
+    avgDaysSaleToReturn: returnDays.length ? average(returnDays) : null,
+    avgDaysBetweenRepairs: repairGaps.length ? average(repairGaps) : null,
+    imei2plus: imeiAgg.filter((r) => r.repairCount >= 2).length,
+    imei3plus: imeiAgg.filter((r) => r.repairCount >= 3).length,
+    worstModel: models[0] || null,
+    worstOwner: owners[0] || null,
+    worstMaster: masters.sort((a, b) => b.repeatRate - a.repeatRate)[0] || null
+  };
 }
