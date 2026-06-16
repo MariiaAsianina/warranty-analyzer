@@ -85,8 +85,9 @@ const TabImei = {
         ${summaryItem("Дата останнього звернення", fmtDate(r.lastClaimDate), "", "Дата останнього оприбуткування, що сталось після продажу (останнє звернення клієнта).")}
         ${summaryItem("К-сть обмінів", r.exchangeCount, "", "Кількість записів-обмінів (характеристик IMEI) у звітах 1С для цього пристрою.")}
         ${summaryItem("Днів продаж → повернення", r.daysSaleToReturn ?? "—", levelClass(r.daysSaleToReturn ?? -1, 30, 7, true), "Кількість днів між продажем і першим зверненням. Менше значення = пристрій повернули швидше, що може вказувати на серйознішу проблему.")}
-        ${summaryItem("Оприбуткувань (звернень)", r.receiptCount, "", "Загальна кількість подій 'Оприбуткування запасів' для цього IMEI.")}
-        ${summaryItem("Звернень (claims)", r.claimCount, levelClass(r.claimCount, 1, 2), "Кількість оприбуткувань, що сталися після продажу — тобто скільки разів клієнт повертав пристрій.")}
+        ${summaryItem("Оприбуткувань усього", r.receiptCount, "", "Загальна кількість подій 'Оприбуткування запасів' для цього IMEI.")}
+        ${summaryItem("Оприбуткувань після продажу", r.receiptsAfterSale, levelClass(r.receiptsAfterSale, 1, 2), "Кількість оприбуткувань, що сталися після продажу (дата > дата продажу) — повернення клієнтом. Кожне таке оприбуткування = нове звернення клієнта.")}
+        ${summaryItem("Оприбуткувань після ремонту", r.receiptsAfterRepair, levelClass(r.receiptsAfterRepair, 1, 2), "Кількість оприбуткувань, що сталися одразу після ремонту (виробництва) — повернення пристрою на склад після ремонтних робіт, а не повернення від клієнта.")}
         ${summaryItem("Ремонтів", r.repairCount, levelClass(r.repairCount, 1, 2), "Кількість подій 'Виробництво' (фактичних ремонтів) для цього IMEI.")}
         ${summaryItem("Сер. днів між ремонтами", fmtNum(r.avgDaysBetweenRepairs, 0), "", "Середній інтервал у днях між послідовними ремонтами цього IMEI.")}
         ${summaryItem("Майстри ремонту", r.repairMasters.length ? r.repairMasters.join(", ") : "—", "", "Усі майстри, які ремонтували цей IMEI.")}
@@ -100,6 +101,7 @@ const TabImei = {
         <thead><tr>
           <th title="Дата документа.">Дата</th>
           <th title="Тип документа/події: Продаж, Оприбуткування, Ремонт, Списання, Переміщення.">Тип</th>
+          <th title="Для оприбуткувань: після продажу (звернення клієнта), після ремонту (повернення на склад) або первинне.">Деталь оприбуткування</th>
           <th title="Номер документа в 1С.">Документ</th>
           <th title="Склад/магазин, де відбулась подія.">Склад</th>
           <th title="Майстер, що виконував ремонт (лише для подій 'Ремонт').">Майстер</th>
@@ -110,6 +112,7 @@ const TabImei = {
             <tr>
               <td>${fmtDate(e.date)}</td>
               <td>${eventTypeLabel(e.type)}</td>
+              <td>${e.type === "receipt" ? receiptKindBadge(e.receiptKind) : ""}</td>
               <td>${escapeHtml(e.docNumber || "—")}</td>
               <td>${escapeHtml(e.warehouse || "—")}</td>
               <td>${escapeHtml(e.repairMaster || "—")}</td>
@@ -121,6 +124,12 @@ const TabImei = {
     `;
   }
 };
+
+function receiptKindBadge(kind) {
+  if (kind === "claim")      return badge("Після продажу", "bad");
+  if (kind === "afterRepair") return badge("Після ремонту", "warn");
+  return badge("Первинне", "good");
+}
 
 function summaryItem(label, value, level = "", desc = "") {
   const title = desc ? ` title="${escapeHtml(desc)}"` : "";

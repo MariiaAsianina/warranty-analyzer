@@ -199,6 +199,25 @@ function aggregateByImei(records) {
     }
     const daysSaleToReturn = firstClaim ? daysBetween(lastSaleBeforeClaim, firstClaim.date) : null;
 
+    // Для кожного оприбуткування визначаємо його тип за попередньою подією
+    // в хронологічному порядку, щоб показати в таймлайні IMEI.
+    const annotatedEvents = events.filter((e) => e.date).map((e, idx, arr) => {
+      if (e.type !== "receipt") return e;
+      const prevNonReceipt = arr.slice(0, idx).reverse().find((ev) => ev.type !== "receipt");
+      let receiptKind;
+      if (prevNonReceipt && prevNonReceipt.type === "production") {
+        receiptKind = "afterRepair"; // після ремонту → повернення на склад
+      } else if (e.date && saleDate && e.date > saleDate) {
+        receiptKind = "claim"; // після продажу → звернення клієнта
+      } else {
+        receiptKind = "initial"; // первинне оприбуткування від постачальника/Trade-in
+      }
+      return { ...e, receiptKind };
+    });
+
+    const receiptsAfterSale = annotatedEvents.filter((e) => e.receiptKind === "claim").length;
+    const receiptsAfterRepair = annotatedEvents.filter((e) => e.receiptKind === "afterRepair").length;
+
     const first = g.exchanges[0];
     const modelLabel = `${first.brand || ""} ${first.model || ""}`.trim() || "Невідома модель";
     result.push({
@@ -218,6 +237,8 @@ function aggregateByImei(records) {
       claimCount: claims.length,
       repairCount: repairs.length,
       receiptCount: receipts.length,
+      receiptsAfterSale,
+      receiptsAfterRepair,
       repeatClaims: Math.max(0, claims.length - 1),
       repeatRepairs: Math.max(0, repairs.length - 1),
       saleDate,
@@ -229,7 +250,7 @@ function aggregateByImei(records) {
       daysToFirstClaim: saleDate && firstClaim ? daysBetween(saleDate, firstClaim.date) : null,
       avgDaysBetweenRepairs: gaps.length ? average(gaps) : null,
       repairMasters: [...new Set(repairs.map((e) => e.repairMaster).filter(Boolean))],
-      events: events.filter((e) => e.date),
+      events: annotatedEvents,
       reasons: [...uniqueReasons],
       sameReasonRepeat,
       problem: repairs.length >= 2 || claims.length >= 2 || sameReasonRepeat
